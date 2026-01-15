@@ -466,7 +466,6 @@ class TaskController {
       };
     }
   }
-  // Tambahkan methods ini di class TaskController
 
   /**
    * Get tasks by category
@@ -483,35 +482,37 @@ class TaskController {
       }
 
       // Validate category
-      const validCategories = EnhancedTask.getAvailableCategories();
-      if (!validCategories.includes(category)) {
+      if (!this._isValidCategory(category)) {
         return {
           success: false,
           error: "Kategori tidak valid",
         };
       }
 
-      // Get user's tasks in specific category
-      const userTasks = this.taskRepository.findByOwner(this.currentUser.id);
-      const categoryTasks = userTasks.filter((task) =>
-        task.isInCategory(category)
+      // Get user's tasks in specific category using repository method
+      const categoryTasks = this.taskRepository.findByCategory(category);
+      const userCategoryTasks = categoryTasks.filter(
+        (task) => task.ownerId === this.currentUser.id
       );
 
       // Sort by priority and due date
       const sortedTasks = this.taskRepository.sort(
-        categoryTasks,
+        userCategoryTasks,
         "priority",
         "desc"
       );
+
+      // Get display name from first task if available
+      const categoryDisplayName = sortedTasks.length > 0 
+        ? sortedTasks[0].getCategoryDisplayName()
+        : this._getCategoryDisplayName(category);
 
       return {
         success: true,
         data: sortedTasks,
         count: sortedTasks.length,
         category: category,
-        categoryDisplayName: EnhancedTask.prototype.getCategoryDisplayName.call(
-          { _category: category }
-        ),
+        categoryDisplayName: categoryDisplayName,
       };
     } catch (error) {
       return {
@@ -590,8 +591,7 @@ class TaskController {
       }
 
       // Validate category
-      const validCategories = EnhancedTask.getAvailableCategories();
-      if (!validCategories.includes(newCategory)) {
+      if (!this._isValidCategory(newCategory)) {
         return {
           success: false,
           error: "Kategori tidak valid",
@@ -603,12 +603,13 @@ class TaskController {
         category: newCategory,
       });
 
+      // Get display name from updated task
+      const categoryDisplayName = updatedTask.getCategoryDisplayName();
+
       return {
         success: true,
         data: updatedTask,
-        message: `Kategori task berhasil diubah ke ${EnhancedTask.prototype.getCategoryDisplayName.call(
-          { _category: newCategory }
-        )}`,
+        message: `Kategori task berhasil diubah ke ${categoryDisplayName}`,
       };
     } catch (error) {
       return {
@@ -624,13 +625,19 @@ class TaskController {
    */
   getAvailableCategories() {
     try {
-      const categories = EnhancedTask.getAvailableCategories();
-      const categoriesWithDisplay = categories.map((category) => ({
-        value: category,
-        label: EnhancedTask.prototype.getCategoryDisplayName.call({
-          _category: category,
-        }),
-      }));
+      // Use hardcoded categories with display names
+      const categoriesWithDisplay = [
+        { value: 'work', label: 'Work & Business' },
+        { value: 'personal', label: 'Personal' },
+        { value: 'study', label: 'Study & Learning' },
+        { value: 'health', label: 'Health & Fitness' },
+        { value: 'finance', label: 'Finance & Budget' },
+        { value: 'shopping', label: 'Shopping & Errands' },
+        { value: 'home', label: 'Home & Maintenance' },
+        { value: 'social', label: 'Social & Events' },
+        { value: 'hobbies', label: 'Hobbies & Recreation' },
+        { value: 'other', label: 'Other' },
+      ];
 
       return {
         success: true,
@@ -642,6 +649,51 @@ class TaskController {
         error: error.message,
       };
     }
+  }
+
+  /**
+   * Helper method to get category display name
+   * @param {string} category - Category value
+   * @returns {string} - Display name
+   * @private
+   */
+  _getCategoryDisplayName(category) {
+    const categoryMap = {
+      work: "Work & Business",
+      personal: "Personal",
+      study: "Study & Learning",
+      health: "Health & Fitness",
+      finance: "Finance & Budget",
+      shopping: "Shopping & Errands",
+      home: "Home & Maintenance",
+      social: "Social & Events",
+      hobbies: "Hobbies & Recreation",
+      other: "Other",
+    };
+
+    return categoryMap[category] || category.charAt(0).toUpperCase() + category.slice(1);
+  }
+
+  /**
+   * Helper method to get valid categories
+   * @returns {Array} - Array of valid category values
+   * @private
+   */
+  _getValidCategories() {
+    return [
+      'work', 'personal', 'study', 'health', 'finance',
+      'shopping', 'home', 'social', 'hobbies', 'other'
+    ];
+  }
+
+  /**
+   * Helper method to validate category
+   * @param {string} category - Category to validate
+   * @returns {boolean} - True if valid
+   * @private
+   */
+  _isValidCategory(category) {
+    return this._getValidCategories().includes(category);
   }
 }
 
